@@ -1,0 +1,312 @@
+import 'package:flutter/material.dart';
+
+import '../models/app_user.dart';
+import '../models/employee.dart';
+import '../models/leave_request.dart';
+import '../state/bci_store.dart';
+import '../widgets/status_chip.dart';
+
+class LeaveScreen extends StatefulWidget {
+  const LeaveScreen({super.key, required this.store});
+
+  final BciStore store;
+
+  @override
+  State<LeaveScreen> createState() => _LeaveScreenState();
+}
+
+class _LeaveScreenState extends State<LeaveScreen> {
+  @override
+  Widget build(BuildContext context) {
+    final AppUser? user = widget.store.currentUser;
+    final bool canApprove = user?.role == UserRole.hrOfficer || user?.role == UserRole.admin;
+    final bool isEmployeeView = user?.role == UserRole.employee && !canApprove;
+
+    if (isEmployeeView) {
+      return _buildSelfView(context, user!.employeeId);
+    }
+    return _buildManageView(context, canApprove: canApprove);
+  }
+
+  Widget _buildSelfView(BuildContext context, String? employeeId) {
+    if (employeeId == null) {
+      return const Center(child: Text('No linked employee record for this account.'));
+    }
+    final List<LeaveRequest> requests = widget.store.leaveRequestsForEmployee(employeeId);
+
+    return Scaffold(
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+        children: <Widget>[
+          Text(
+            'My Leave',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          Text('Leave balance and request history', style: Theme.of(context).textTheme.bodyLarge),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: LeaveType.values
+                .where((LeaveType t) => t != LeaveType.noPay)
+                .map((LeaveType type) => Card(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(type.label, style: Theme.of(context).textTheme.labelLarge),
+                            Text(
+                              '${widget.store.leaveBalance(employeeId, type)} day(s) left',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: 20),
+          if (requests.isEmpty)
+            const Center(child: Text('No leave requests yet.'))
+          else
+            ...requests.map((LeaveRequest r) => _requestTile(context, r, canApprove: false)),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showApplyDialog(employeeId),
+        icon: const Icon(Icons.event_available_outlined),
+        label: const Text('Apply for Leave'),
+      ),
+    );
+  }
+
+  Widget _buildManageView(BuildContext context, {required bool canApprove}) {
+    final List<LeaveRequest> requests = List<LeaveRequest>.of(widget.store.leaveRequests)
+      ..sort((LeaveRequest a, LeaveRequest b) {
+        if (a.status == b.status) return b.appliedOn.compareTo(a.appliedOn);
+        if (a.status == LeaveStatus.pending) return -1;
+        if (b.status == LeaveStatus.pending) return 1;
+        return b.appliedOn.compareTo(a.appliedOn);
+      });
+
+    return Scaffold(
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+        children: <Widget>[
+          Text(
+            'Leave Requests',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Employee leave applications and approvals',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 16),
+          if (requests.isEmpty)
+            const Center(child: Text('No leave requests submitted yet.'))
+          else
+            ...requests.map((LeaveRequest r) => _requestTile(context, r, canApprove: canApprove)),
+        ],
+      ),
+    );
+  }
+
+  Widget _requestTile(BuildContext context, LeaveRequest request, {required bool canApprove}) {
+    final Employee? employee = widget.store.employeeById(request.employeeId);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    employee?.name ?? request.employeeId,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                StatusChip(label: request.status.label, tone: _toneFor(request.status)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('${request.leaveType.label} • ${request.durationInDays} day(s)'),
+            Text(
+              '${_formatDate(request.startDate)} to ${_formatDate(request.endDate)}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            if (request.reason.isNotEmpty) ...<Widget>[
+              const SizedBox(height: 4),
+              Text(request.reason, style: Theme.of(context).textTheme.bodySmall),
+            ],
+            if (canApprove && request.status == LeaveStatus.pending) ...<Widget>[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: <Widget>[
+                  TextButton(
+                    onPressed: () => widget.store.rejectLeave(request.id),
+                    child: const Text('Reject'),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: () => widget.store.approveLeave(request.id),
+                    child: const Text('Approve'),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showApplyDialog(String employeeId) async {
+    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+    final TextEditingController reasonController = TextEditingController();
+    LeaveType leaveType = LeaveType.annual;
+    DateTime startDate = DateTime.now();
+    DateTime endDate = DateTime.now();
+
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) => StatefulBuilder(
+        builder: (BuildContext dialogContext, StateSetter setDialogState) {
+          return AlertDialog(
+            title: const Text('Apply for Leave'),
+            content: SizedBox(
+              width: 460,
+              child: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      DropdownButtonFormField<LeaveType>(
+                        value: leaveType,
+                        decoration: const InputDecoration(
+                          labelText: 'Leave Type',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: LeaveType.values
+                            .map((LeaveType t) =>
+                                DropdownMenuItem<LeaveType>(value: t, child: Text(t.label)))
+                            .toList(),
+                        onChanged: (LeaveType? v) {
+                          if (v != null) setDialogState(() => leaveType = v);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final DateTime? picked = await showDatePicker(
+                                  context: dialogContext,
+                                  initialDate: startDate,
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime(2100),
+                                );
+                                if (picked != null) {
+                                  setDialogState(() {
+                                    startDate = picked;
+                                    if (endDate.isBefore(startDate)) endDate = startDate;
+                                  });
+                                }
+                              },
+                              icon: const Icon(Icons.calendar_today_outlined, size: 16),
+                              label: Text('From ${_formatDate(startDate)}'),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final DateTime? picked = await showDatePicker(
+                                  context: dialogContext,
+                                  initialDate: endDate,
+                                  firstDate: startDate,
+                                  lastDate: DateTime(2100),
+                                );
+                                if (picked != null) {
+                                  setDialogState(() => endDate = picked);
+                                }
+                              },
+                              icon: const Icon(Icons.calendar_today_outlined, size: 16),
+                              label: Text('To ${_formatDate(endDate)}'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: reasonController,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          labelText: 'Reason',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (String? value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Reason is required.';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  if (formKey.currentState!.validate()) {
+                    widget.store.applyLeave(
+                      employeeId: employeeId,
+                      leaveType: leaveType,
+                      startDate: startDate,
+                      endDate: endDate,
+                      reason: reasonController.text.trim(),
+                    );
+                    Navigator.pop(dialogContext);
+                  }
+                },
+                child: const Text('Submit'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    reasonController.dispose();
+  }
+
+  String _formatDate(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+  StatusTone _toneFor(LeaveStatus status) {
+    switch (status) {
+      case LeaveStatus.approved:
+        return StatusTone.positive;
+      case LeaveStatus.rejected:
+        return StatusTone.negative;
+      case LeaveStatus.pending:
+        return StatusTone.warning;
+    }
+  }
+}
