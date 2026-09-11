@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/course_controller.dart';
+import '../controllers/enrollment_controller.dart';
 import '../models/course.dart';
-import '../state/bci_store.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/form_entry_field.dart';
 import '../widgets/management_list_header.dart';
 
 class CoursesScreen extends StatefulWidget {
-  const CoursesScreen({super.key, required this.store});
+  const CoursesScreen({super.key, required this.courses, required this.enrollment});
 
-  final BciStore store;
+  final CourseController courses;
+  final EnrollmentController enrollment;
 
   @override
   State<CoursesScreen> createState() => _CoursesScreenState();
@@ -20,7 +22,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Course> courses = widget.store.courses.where((Course course) {
+    final List<Course> courses = widget.courses.courses.where((Course course) {
       final String search = _query.toLowerCase();
       return course.id.toLowerCase().contains(search) ||
           course.code.toLowerCase().contains(search) ||
@@ -46,7 +48,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                     itemBuilder: (BuildContext context, int index) {
                       final Course course = courses[index];
                       final int enrolledCount =
-                          widget.store.studentsForCourse(course.id).length;
+                          widget.enrollment.studentIdsForCourse(course.id).length;
                       return Card(
                         child: ListTile(
                           leading: const CircleAvatar(
@@ -105,7 +107,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
     );
 
     if (confirmed) {
-      widget.store.removeCourse(course.id);
+      widget.courses.removeCourse(course.id);
     }
   }
 
@@ -183,9 +185,9 @@ class _CoursesScreenState extends State<CoursesScreen> {
                   description: descriptionController.text.trim(),
                 );
                 if (isEdit) {
-                  widget.store.updateCourse(course);
+                  widget.courses.updateCourse(course);
                 } else {
-                  widget.store.addCourse(course);
+                  widget.courses.addCourse(course);
                 }
                 Navigator.pop(dialogContext);
               }

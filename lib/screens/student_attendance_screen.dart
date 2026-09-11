@@ -1,20 +1,29 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/auth_controller.dart';
+import '../controllers/student_attendance_controller.dart';
+import '../controllers/student_controller.dart';
 import '../models/app_user.dart';
 import '../models/attendance_status.dart';
 import '../models/module.dart';
 import '../models/student.dart';
 import '../models/student_attendance_record.dart';
-import '../state/bci_store.dart';
 import '../utils/formatters.dart';
 import '../utils/status_tone.dart';
 import '../widgets/date_picker_button.dart';
 import '../widgets/status_chip.dart';
 
 class StudentAttendanceScreen extends StatefulWidget {
-  const StudentAttendanceScreen({super.key, required this.store});
+  const StudentAttendanceScreen({
+    super.key,
+    required this.auth,
+    required this.attendance,
+    required this.students,
+  });
 
-  final BciStore store;
+  final AuthController auth;
+  final StudentAttendanceController attendance;
+  final StudentController students;
 
   @override
   State<StudentAttendanceScreen> createState() => _StudentAttendanceScreenState();
@@ -26,7 +35,7 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final AppUser? user = widget.store.currentUser;
+    final AppUser? user = widget.auth.currentUser;
     final bool isStudentView = user?.role == UserRole.student;
 
     if (isStudentView) {
@@ -40,12 +49,12 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
     if (studentId == null) {
       return const Center(child: Text('No linked student record for this account.'));
     }
-    final Student? student = widget.store.studentById(studentId);
-    final List<StudentAttendanceRecord> records = widget.store.studentAttendance
+    final Student? student = widget.students.studentById(studentId);
+    final List<StudentAttendanceRecord> records = widget.attendance.studentAttendance
         .where((StudentAttendanceRecord r) => r.studentId == studentId)
         .toList()
       ..sort((StudentAttendanceRecord a, StudentAttendanceRecord b) => b.date.compareTo(a.date));
-    final double percentage = widget.store.attendancePercentage(studentId);
+    final double percentage = widget.attendance.attendancePercentage(studentId);
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -92,7 +101,7 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
             (StudentAttendanceRecord r) => Card(
               child: ListTile(
                 leading: const Icon(Icons.event_outlined),
-                title: Text(widget.store.moduleById(r.moduleId)?.name ?? r.moduleId),
+                title: Text(widget.attendance.moduleById(r.moduleId)?.name ?? r.moduleId),
                 subtitle: Text(r.date.toDisplayDate()),
                 trailing: StatusChip(label: r.status.label, tone: r.status.tone),
               ),
@@ -103,9 +112,9 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
   }
 
   Widget _buildMarkingView(BuildContext context) {
-    final List<Module> modules = widget.store.modules;
+    final List<Module> modules = widget.attendance.modules;
     _selectedModule ??= modules.isEmpty ? null : modules.first;
-    final List<Student> students = widget.store.students;
+    final List<Student> students = widget.students.students;
 
     return Scaffold(
       body: ListView(
@@ -159,13 +168,13 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
   Widget _buildStudentRow(Student student) {
     final Module module = _selectedModule!;
     StudentAttendanceRecord? existing;
-    for (final StudentAttendanceRecord r in widget.store.studentAttendance) {
+    for (final StudentAttendanceRecord r in widget.attendance.studentAttendance) {
       if (r.studentId == student.id && r.moduleId == module.id && r.date.isSameDate(_selectedDate)) {
         existing = r;
         break;
       }
     }
-    final double percentage = widget.store.attendancePercentage(student.id);
+    final double percentage = widget.attendance.attendancePercentage(student.id);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -199,7 +208,7 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
                   label: Text(status.label),
                   selected: selected,
                   onSelected: (_) {
-                    widget.store.markStudentAttendance(
+                    widget.attendance.markStudentAttendance(
                       studentId: student.id,
                       moduleId: module.id,
                       date: _selectedDate,

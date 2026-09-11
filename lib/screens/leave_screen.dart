@@ -1,18 +1,27 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/auth_controller.dart';
+import '../controllers/employee_controller.dart';
+import '../controllers/leave_controller.dart';
 import '../models/app_user.dart';
 import '../models/employee.dart';
 import '../models/leave_request.dart';
-import '../state/bci_store.dart';
 import '../utils/formatters.dart';
 import '../utils/status_tone.dart';
 import '../widgets/date_range_picker_row.dart';
 import '../widgets/status_chip.dart';
 
 class LeaveScreen extends StatefulWidget {
-  const LeaveScreen({super.key, required this.store});
+  const LeaveScreen({
+    super.key,
+    required this.auth,
+    required this.leave,
+    required this.employees,
+  });
 
-  final BciStore store;
+  final AuthController auth;
+  final LeaveController leave;
+  final EmployeeController employees;
 
   @override
   State<LeaveScreen> createState() => _LeaveScreenState();
@@ -21,7 +30,7 @@ class LeaveScreen extends StatefulWidget {
 class _LeaveScreenState extends State<LeaveScreen> {
   @override
   Widget build(BuildContext context) {
-    final AppUser? user = widget.store.currentUser;
+    final AppUser? user = widget.auth.currentUser;
     final bool canApprove = user?.role == UserRole.hrOfficer || user?.role == UserRole.admin;
     final bool isEmployeeView = user?.role == UserRole.employee && !canApprove;
 
@@ -35,7 +44,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
     if (employeeId == null) {
       return const Center(child: Text('No linked employee record for this account.'));
     }
-    final List<LeaveRequest> requests = widget.store.leaveRequestsForEmployee(employeeId);
+    final List<LeaveRequest> requests = widget.leave.leaveRequestsForEmployee(employeeId);
 
     return Scaffold(
       body: ListView(
@@ -61,7 +70,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
                           children: <Widget>[
                             Text(type.label, style: Theme.of(context).textTheme.labelLarge),
                             Text(
-                              '${widget.store.leaveBalance(employeeId, type)} day(s) left',
+                              '${widget.leave.leaveBalance(employeeId, type)} day(s) left',
                               style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ],
@@ -86,7 +95,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
   }
 
   Widget _buildManageView(BuildContext context, {required bool canApprove}) {
-    final List<LeaveRequest> requests = List<LeaveRequest>.of(widget.store.leaveRequests)
+    final List<LeaveRequest> requests = List<LeaveRequest>.of(widget.leave.leaveRequests)
       ..sort((LeaveRequest a, LeaveRequest b) {
         if (a.status == b.status) return b.appliedOn.compareTo(a.appliedOn);
         if (a.status == LeaveStatus.pending) return -1;
@@ -118,7 +127,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
   }
 
   Widget _requestTile(BuildContext context, LeaveRequest request, {required bool canApprove}) {
-    final Employee? employee = widget.store.employeeById(request.employeeId);
+    final Employee? employee = widget.employees.employeeById(request.employeeId);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -154,12 +163,12 @@ class _LeaveScreenState extends State<LeaveScreen> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: <Widget>[
                   TextButton(
-                    onPressed: () => widget.store.rejectLeave(request.id),
+                    onPressed: () => widget.leave.rejectLeave(request.id),
                     child: const Text('Reject'),
                   ),
                   const SizedBox(width: 8),
                   FilledButton(
-                    onPressed: () => widget.store.approveLeave(request.id),
+                    onPressed: () => widget.leave.approveLeave(request.id),
                     child: const Text('Approve'),
                   ),
                 ],
@@ -245,7 +254,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
               FilledButton(
                 onPressed: () {
                   if (formKey.currentState!.validate()) {
-                    widget.store.applyLeave(
+                    widget.leave.applyLeave(
                       employeeId: employeeId,
                       leaveType: leaveType,
                       startDate: startDate,

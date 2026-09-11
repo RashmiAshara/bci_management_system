@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../state/bci_store.dart';
+import '../controllers/app_controllers.dart';
 import '../utils/formatters.dart';
 import '../widgets/summary_card.dart';
 
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key, required this.store});
+  const DashboardScreen({super.key, required this.controllers});
 
-  final BciStore store;
+  final AppControllers controllers;
 
   @override
   Widget build(BuildContext context) {
@@ -22,9 +22,10 @@ class DashboardScreen extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          store.currentUser == null
+          controllers.auth.currentUser == null
               ? 'Student administration and monthly payroll overview'
-              : 'Welcome, ${store.currentUser!.name} (${store.currentUser!.role.label})',
+              : 'Welcome, ${controllers.auth.currentUser!.name} '
+                  '(${controllers.auth.currentUser!.role.label})',
           style: Theme.of(context).textTheme.bodyLarge,
         ),
         const SizedBox(height: 20),
@@ -42,37 +43,37 @@ class DashboardScreen extends StatelessWidget {
             final List<Widget> cards = <Widget>[
               SummaryCard(
                 title: 'Registered Students',
-                value: store.students.length.toString(),
-                subtitle: '${store.activeStudentCount} active students',
+                value: controllers.students.students.length.toString(),
+                subtitle: '${controllers.students.activeStudentCount} active students',
                 icon: Icons.school_outlined,
               ),
               SummaryCard(
                 title: 'Courses',
-                value: store.courses.length.toString(),
-                subtitle: '${store.enrollments.length} active enrollment(s)',
+                value: controllers.courses.courses.length.toString(),
+                subtitle: '${controllers.enrollment.enrollments.length} active enrollment(s)',
                 icon: Icons.menu_book_outlined,
               ),
               SummaryCard(
                 title: 'Employees',
-                value: store.employees.length.toString(),
+                value: controllers.employees.employees.length.toString(),
                 subtitle: 'Academic and non-academic staff',
                 icon: Icons.badge_outlined,
               ),
               SummaryCard(
                 title: 'Monthly Net Payroll',
-                value: store.monthlyPayrollTotal.toCurrency(),
+                value: controllers.employees.monthlyPayrollTotal.toCurrency(),
                 subtitle: 'Calculated from current employee records',
                 icon: Icons.payments_outlined,
               ),
               SummaryCard(
                 title: 'Pending Leave Requests',
-                value: store.pendingLeaveCount.toString(),
+                value: controllers.leave.pendingLeaveCount.toString(),
                 subtitle: 'Awaiting HR/admin approval',
                 icon: Icons.event_busy_outlined,
               ),
               SummaryCard(
                 title: 'Payroll Awaiting Approval',
-                value: store.pendingPayrollApprovalCount.toString(),
+                value: controllers.payroll.pendingPayrollApprovalCount.toString(),
                 subtitle: 'Generated periods pending sign-off',
                 icon: Icons.fact_check_outlined,
               ),
@@ -126,7 +127,7 @@ class DashboardScreen extends StatelessWidget {
                   icon: Icons.cloud_outlined,
                   title: 'Backend Integration Ready',
                   description:
-                      'Replace the in-memory store with Spring Boot REST APIs later.',
+                      'Replace the in-memory controllers with Spring Boot REST APIs later.',
                 ),
               ],
             ),

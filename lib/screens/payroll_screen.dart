@@ -1,20 +1,29 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/auth_controller.dart';
+import '../controllers/employee_controller.dart';
+import '../controllers/payroll_controller.dart';
 import '../models/app_user.dart';
 import '../models/employee.dart';
 import '../models/payroll_period.dart';
 import '../models/payslip.dart';
 import '../models/salary_component.dart';
-import '../state/bci_store.dart';
 import '../utils/formatters.dart';
 import '../utils/status_tone.dart';
 import '../widgets/date_range_picker_row.dart';
 import '../widgets/status_chip.dart';
 
 class PayrollScreen extends StatefulWidget {
-  const PayrollScreen({super.key, required this.store});
+  const PayrollScreen({
+    super.key,
+    required this.auth,
+    required this.payroll,
+    required this.employees,
+  });
 
-  final BciStore store;
+  final AuthController auth;
+  final PayrollController payroll;
+  final EmployeeController employees;
 
   @override
   State<PayrollScreen> createState() => _PayrollScreenState();
@@ -23,7 +32,7 @@ class PayrollScreen extends StatefulWidget {
 class _PayrollScreenState extends State<PayrollScreen> {
   @override
   Widget build(BuildContext context) {
-    final AppUser? user = widget.store.currentUser;
+    final AppUser? user = widget.auth.currentUser;
     final bool isEmployeeView = user?.role == UserRole.employee;
 
     if (isEmployeeView) {
@@ -36,7 +45,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
     if (employeeId == null) {
       return const Center(child: Text('No linked employee record for this account.'));
     }
-    final List<Payslip> payslips = widget.store.payslipsForEmployee(employeeId);
+    final List<Payslip> payslips = widget.payroll.payslipsForEmployee(employeeId);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
@@ -59,7 +68,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
   Widget _buildManageView(BuildContext context, AppUser? user) {
     final bool canGenerate = user?.role == UserRole.financeOfficer || user?.role == UserRole.admin;
     final bool canApprove = user?.role == UserRole.payrollApprover || user?.role == UserRole.admin;
-    final List<PayrollPeriod> periods = widget.store.payrollPeriods;
+    final List<PayrollPeriod> periods = widget.payroll.payrollPeriods;
 
     return Scaffold(
       body: ListView(
@@ -88,7 +97,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
                       children: <Widget>[
                         const Text('Current Estimated Net Payroll'),
                         Text(
-                          widget.store.monthlyPayrollTotal.toCurrency(),
+                          widget.employees.monthlyPayrollTotal.toCurrency(),
                           style: Theme.of(context)
                               .textTheme
                               .headlineSmall
@@ -134,7 +143,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
     required bool canGenerate,
     required bool canApprove,
   }) {
-    final List<Payslip> payslips = widget.store.payslipsForPeriod(period.id);
+    final List<Payslip> payslips = widget.payroll.payslipsForPeriod(period.id);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -150,14 +159,14 @@ class _PayrollScreenState extends State<PayrollScreen> {
             children: <Widget>[
               if (canGenerate && period.status == PayrollPeriodStatus.draft)
                 FilledButton.icon(
-                  onPressed: () => widget.store.generatePayroll(period.id),
+                  onPressed: () => widget.payroll.generatePayroll(period.id),
                   icon: const Icon(Icons.calculate_outlined, size: 18),
                   label: const Text('Generate Payroll'),
                 ),
               if (canApprove && period.status == PayrollPeriodStatus.generated) ...<Widget>[
                 const SizedBox(width: 8),
                 FilledButton.icon(
-                  onPressed: () => widget.store.approvePayrollPeriod(period.id),
+                  onPressed: () => widget.payroll.approvePayrollPeriod(period.id),
                   icon: const Icon(Icons.check_circle_outline, size: 18),
                   label: const Text('Approve Payroll'),
                 ),
@@ -177,7 +186,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
   }
 
   Widget _payslipTile(BuildContext context, Payslip payslip) {
-    final Employee? employee = widget.store.employeeById(payslip.employeeId);
+    final Employee? employee = widget.employees.employeeById(payslip.employeeId);
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -296,7 +305,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
               FilledButton(
                 onPressed: () {
                   if (formKey.currentState!.validate()) {
-                    widget.store.createPayrollPeriod(
+                    widget.payroll.createPayrollPeriod(
                       label: labelController.text.trim(),
                       startDate: startDate,
                       endDate: endDate,

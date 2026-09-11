@@ -1,27 +1,27 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/app_controllers.dart';
 import '../models/app_user.dart';
 import '../models/course.dart';
 import '../models/employee.dart';
 import '../models/student.dart';
-import '../state/bci_store.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key, required this.store});
+  const ProfileScreen({super.key, required this.controllers});
 
-  final BciStore store;
+  final AppControllers controllers;
 
   @override
   Widget build(BuildContext context) {
-    final AppUser? user = store.currentUser;
+    final AppUser? user = controllers.auth.currentUser;
     if (user == null) {
       return const SizedBox.shrink();
     }
 
     final Employee? linkedEmployee =
-        user.employeeId == null ? null : store.employeeById(user.employeeId!);
+        user.employeeId == null ? null : controllers.employees.employeeById(user.employeeId!);
     final Student? linkedStudent =
-        user.studentId == null ? null : store.studentById(user.studentId!);
+        user.studentId == null ? null : controllers.students.studentById(user.studentId!);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
@@ -111,8 +111,8 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Builder(builder: (BuildContext context) {
-                      final List<Course> myCourses =
-                          store.coursesForStudent(linkedStudent.id);
+                      final List<Course> myCourses = controllers.enrollment
+                          .coursesForStudent(linkedStudent.id, controllers.courses.courseById);
                       if (myCourses.isEmpty) {
                         return const Text(
                           'Not enrolled in any courses yet.',
@@ -137,7 +137,7 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 24),
           OutlinedButton.icon(
             onPressed: () {
-              store.logout();
+              controllers.auth.logout();
               Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
             },
             icon: const Icon(Icons.logout),

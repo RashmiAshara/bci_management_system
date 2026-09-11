@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/employee_controller.dart';
 import '../models/employee.dart';
 import '../models/salary_component.dart';
-import '../state/bci_store.dart';
 import '../utils/formatters.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/form_entry_field.dart';
 import '../widgets/management_list_header.dart';
 
 class EmployeesScreen extends StatefulWidget {
-  const EmployeesScreen({super.key, required this.store});
+  const EmployeesScreen({super.key, required this.employees});
 
-  final BciStore store;
+  final EmployeeController employees;
 
   @override
   State<EmployeesScreen> createState() => _EmployeesScreenState();
@@ -22,7 +22,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Employee> employees = widget.store.employees.where((Employee employee) {
+    final List<Employee> employees = widget.employees.employees.where((Employee employee) {
       final String search = _query.toLowerCase();
       return employee.id.toLowerCase().contains(search) ||
           employee.name.toLowerCase().contains(search) ||
@@ -101,7 +101,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
     );
 
     if (confirmed) {
-      widget.store.removeEmployee(employee.id);
+      widget.employees.removeEmployee(employee.id);
     }
   }
 
@@ -214,9 +214,9 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                       active: active,
                     );
                     if (isEdit) {
-                      widget.store.updateEmployee(employee);
+                      widget.employees.updateEmployee(employee);
                     } else {
-                      widget.store.addEmployee(employee);
+                      widget.employees.addEmployee(employee);
                     }
                     Navigator.pop(dialogContext);
                   }

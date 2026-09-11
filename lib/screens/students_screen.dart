@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/course_controller.dart';
+import '../controllers/enrollment_controller.dart';
+import '../controllers/student_controller.dart';
 import '../models/course.dart';
 import '../models/student.dart';
-import '../state/bci_store.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/form_entry_field.dart';
 import '../widgets/management_list_header.dart';
 
 class StudentsScreen extends StatefulWidget {
-  const StudentsScreen({super.key, required this.store});
+  const StudentsScreen({
+    super.key,
+    required this.students,
+    required this.courses,
+    required this.enrollment,
+  });
 
-  final BciStore store;
+  final StudentController students;
+  final CourseController courses;
+  final EnrollmentController enrollment;
 
   @override
   State<StudentsScreen> createState() => _StudentsScreenState();
@@ -28,7 +37,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Student> students = widget.store.students.where((Student student) {
+    final List<Student> students = widget.students.students.where((Student student) {
       final String search = _query.toLowerCase();
       return student.id.toLowerCase().contains(search) ||
           student.name.toLowerCase().contains(search) ||
@@ -53,8 +62,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (BuildContext context, int index) {
                       final Student student = students[index];
-                      final List<Course> enrolledCourses =
-                          widget.store.coursesForStudent(student.id);
+                      final List<Course> enrolledCourses = widget.enrollment
+                          .coursesForStudent(student.id, widget.courses.courseById);
                       return Card(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -155,12 +164,12 @@ class _StudentsScreenState extends State<StudentsScreen> {
     );
 
     if (confirmed) {
-      widget.store.removeStudent(student.id);
+      widget.students.removeStudent(student.id);
     }
   }
 
   Future<void> _showEnrollmentDialog(Student student) async {
-    final List<Course> allCourses = widget.store.courses;
+    final List<Course> allCourses = widget.courses.courses;
 
     await showDialog<void>(
       context: context,
@@ -177,16 +186,16 @@ class _StudentsScreenState extends State<StudentsScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: allCourses.map((Course course) {
                           final bool enrolled =
-                              widget.store.isEnrolled(student.id, course.id);
+                              widget.enrollment.isEnrolled(student.id, course.id);
                           return CheckboxListTile(
                             value: enrolled,
                             title: Text(course.name),
                             subtitle: Text('${course.code} • ${course.credits} credit(s)'),
                             onChanged: (bool? value) {
                               if (value == true) {
-                                widget.store.enrollStudent(student.id, course.id);
+                                widget.enrollment.enrollStudent(student.id, course.id);
                               } else {
-                                widget.store.unenrollStudent(student.id, course.id);
+                                widget.enrollment.unenrollStudent(student.id, course.id);
                               }
                               setDialogState(() {});
                               setState(() {});
@@ -302,9 +311,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       status: status,
                     );
                     if (isEdit) {
-                      widget.store.updateStudent(student);
+                      widget.students.updateStudent(student);
                     } else {
-                      widget.store.addStudent(student);
+                      widget.students.addStudent(student);
                     }
                     Navigator.pop(dialogContext);
                   }

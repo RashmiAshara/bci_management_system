@@ -30,12 +30,29 @@ and payroll calculations should ultimately live.
 - Form validation
 - Material 3 interface
 
+## Architecture
+
+The app follows an MVC layering:
+
+- **Model** (`lib/models/`) — plain data classes (`Student`, `Employee`,
+  `LeaveRequest`, ...) with no UI or business-logic dependencies.
+- **Controller** (`lib/controllers/`) — one `ChangeNotifier` per feature
+  (`StudentController`, `PayrollController`, ...) owning that feature's
+  in-memory data and mutation logic. `AppControllers` is the composition
+  root that constructs them and wires the few cross-feature dependencies
+  (e.g. payroll generation reads the employee roster and leave records).
+- **View** (`lib/screens/`, `lib/widgets/`) — widgets that render controller
+  state and forward user actions to controller methods; they hold no
+  business logic of their own. Each screen only takes the specific
+  controller(s) its feature needs, not the whole app state.
+
 ## Demo accounts
 
 All demo accounts use the password shown in the login screen's "Demo accounts" panel
-(also visible directly in `lib/state/bci_store.dart`). Each role sees only the
-navigation destinations relevant to it, e.g. the `employee` account only sees its own
-attendance, leave and payslips, and the `student` account only sees its own attendance.
+(also visible directly in `lib/controllers/auth_controller.dart`). Each role sees only
+the navigation destinations relevant to it, e.g. the `employee` account only sees its
+own attendance, leave and payslips, and the `student` account only sees its own
+attendance.
 
 ## Project setup on macOS
 

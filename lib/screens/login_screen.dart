@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/auth_controller.dart';
 import '../models/app_user.dart';
-import '../state/bci_store.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, required this.store});
+  const LoginScreen({super.key, required this.auth});
 
-  final BciStore store;
+  final AuthController auth;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -27,7 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    final bool success = widget.store.login(
+    final bool success = widget.auth.login(
       _emailController.text.trim(),
       _passwordController.text,
     );
@@ -39,7 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void _useDemoAccount(AppUser user) {
     _emailController.text = user.email;
     _passwordController.text = user.password;
-    widget.store.login(user.email, user.password);
+    widget.auth.login(user.email, user.password);
   }
 
   @override
@@ -177,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 10),
-        ...widget.store.demoAccounts.map(
+        ...widget.auth.demoAccounts.map(
           (AppUser user) => Card(
             margin: const EdgeInsets.only(bottom: 6),
             child: ListTile(

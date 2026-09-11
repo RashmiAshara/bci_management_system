@@ -1,19 +1,28 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/auth_controller.dart';
+import '../controllers/employee_attendance_controller.dart';
+import '../controllers/employee_controller.dart';
 import '../models/app_user.dart';
 import '../models/attendance_status.dart';
 import '../models/employee.dart';
 import '../models/employee_attendance_record.dart';
-import '../state/bci_store.dart';
 import '../utils/formatters.dart';
 import '../utils/status_tone.dart';
 import '../widgets/date_picker_button.dart';
 import '../widgets/status_chip.dart';
 
 class EmployeeAttendanceScreen extends StatefulWidget {
-  const EmployeeAttendanceScreen({super.key, required this.store});
+  const EmployeeAttendanceScreen({
+    super.key,
+    required this.auth,
+    required this.attendance,
+    required this.employees,
+  });
 
-  final BciStore store;
+  final AuthController auth;
+  final EmployeeAttendanceController attendance;
+  final EmployeeController employees;
 
   @override
   State<EmployeeAttendanceScreen> createState() => _EmployeeAttendanceScreenState();
@@ -24,7 +33,7 @@ class _EmployeeAttendanceScreenState extends State<EmployeeAttendanceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final AppUser? user = widget.store.currentUser;
+    final AppUser? user = widget.auth.currentUser;
     final bool isEmployeeView = user?.role == UserRole.employee;
 
     if (isEmployeeView) {
@@ -37,7 +46,7 @@ class _EmployeeAttendanceScreenState extends State<EmployeeAttendanceScreen> {
     if (employeeId == null) {
       return const Center(child: Text('No linked employee record for this account.'));
     }
-    final List<EmployeeAttendanceRecord> records = widget.store.attendanceForEmployee(employeeId);
+    final List<EmployeeAttendanceRecord> records = widget.attendance.attendanceForEmployee(employeeId);
 
     return Scaffold(
       body: ListView(
@@ -72,7 +81,7 @@ class _EmployeeAttendanceScreenState extends State<EmployeeAttendanceScreen> {
   }
 
   Widget _buildStaffView(BuildContext context) {
-    final List<Employee> employees = widget.store.employees;
+    final List<Employee> employees = widget.employees.employees;
 
     return Scaffold(
       body: ListView(
@@ -141,7 +150,7 @@ class _EmployeeAttendanceScreenState extends State<EmployeeAttendanceScreen> {
   }
 
   EmployeeAttendanceRecord? _recordFor(String employeeId, DateTime date) {
-    for (final EmployeeAttendanceRecord r in widget.store.employeeAttendance) {
+    for (final EmployeeAttendanceRecord r in widget.attendance.employeeAttendance) {
       if (r.employeeId == employeeId && r.date.isSameDate(date)) return r;
     }
     return null;
@@ -210,7 +219,7 @@ class _EmployeeAttendanceScreenState extends State<EmployeeAttendanceScreen> {
               ),
               FilledButton(
                 onPressed: () {
-                  widget.store.markEmployeeAttendance(
+                  widget.attendance.markEmployeeAttendance(
                     employeeId: employeeId,
                     date: date,
                     status: status,
