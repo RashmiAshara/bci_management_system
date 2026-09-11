@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import '../models/employee.dart';
 import '../models/salary_component.dart';
 import '../state/bci_store.dart';
+import '../utils/formatters.dart';
+import '../widgets/confirm_delete_dialog.dart';
+import '../widgets/form_entry_field.dart';
+import '../widgets/management_list_header.dart';
 
 class EmployeesScreen extends StatefulWidget {
   const EmployeesScreen({super.key, required this.store});
@@ -29,29 +33,11 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
     return Scaffold(
       body: Column(
         children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'Employee Management',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'Search employees',
-                    hintText: 'Search by ID, name, department or designation',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (String value) => setState(() => _query = value),
-                ),
-              ],
-            ),
+          ManagementListHeader(
+            title: 'Employee Management',
+            searchLabel: 'Search employees',
+            searchHint: 'Search by ID, name, department or designation',
+            onSearchChanged: (String value) => setState(() => _query = value),
           ),
           Expanded(
             child: employees.isEmpty
@@ -76,7 +62,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                           subtitle: Text(
                             '${employee.id} • ${employee.designation}\n'
                             '${employee.department}${employee.active ? '' : ' • Inactive'}\n'
-                            'Net salary: LKR ${employee.netSalary.toStringAsFixed(2)}',
+                            'Net salary: ${employee.netSalary.toCurrency()}',
                           ),
                           isThreeLine: true,
                           trailing: PopupMenuButton<String>(
@@ -108,25 +94,13 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
   }
 
   Future<void> _confirmDelete(Employee employee) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Delete employee'),
-        content: Text('Delete ${employee.name} from the system?'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final bool confirmed = await confirmDelete(
+      context,
+      title: 'Delete employee',
+      message: 'Delete ${employee.name} from the system?',
     );
 
-    if (confirmed == true) {
+    if (confirmed) {
       widget.store.removeEmployee(employee.id);
     }
   }
@@ -169,24 +143,28 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      _TextEntry(controller: idController, label: 'Employee ID', enabled: !isEdit),
-                      _TextEntry(controller: nameController, label: 'Full Name'),
-                      _TextEntry(controller: departmentController, label: 'Department'),
-                      _TextEntry(controller: designationController, label: 'Designation'),
-                      _TextEntry(
+                      FormEntryField(
+                          controller: idController, label: 'Employee ID', enabled: !isEdit),
+                      FormEntryField(controller: nameController, label: 'Full Name'),
+                      FormEntryField(controller: departmentController, label: 'Department'),
+                      FormEntryField(controller: designationController, label: 'Designation'),
+                      FormEntryField(
                         controller: basicController,
                         label: 'Basic Salary (LKR)',
-                        numeric: true,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        validator: _amountValidator,
                       ),
-                      _TextEntry(
+                      FormEntryField(
                         controller: overtimeController,
                         label: 'Overtime (LKR)',
-                        numeric: true,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        validator: _amountValidator,
                       ),
-                      _TextEntry(
+                      FormEntryField(
                         controller: taxController,
                         label: 'Tax (LKR)',
-                        numeric: true,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        validator: _amountValidator,
                       ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
@@ -369,43 +347,14 @@ class _ComponentListEditor extends StatelessWidget {
   }
 }
 
-class _TextEntry extends StatelessWidget {
-  const _TextEntry({
-    required this.controller,
-    required this.label,
-    this.numeric = false,
-    this.enabled = true,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final bool numeric;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
-        controller: controller,
-        enabled: enabled,
-        keyboardType: numeric
-            ? const TextInputType.numberWithOptions(decimal: true)
-            : TextInputType.text,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
-        validator: (String? value) {
-          if (value == null || value.trim().isEmpty) {
-            return '$label is required.';
-          }
-          if (numeric && double.tryParse(value.trim()) == null) {
-            return 'Enter a valid numerical amount.';
-          }
-          return null;
-        },
-      ),
-    );
+/// Validator shared by the salary amount fields above: required, and must
+/// parse as a number.
+String? _amountValidator(String? value) {
+  if (value == null || value.trim().isEmpty) {
+    return 'This field is required.';
   }
+  if (double.tryParse(value.trim()) == null) {
+    return 'Enter a valid numerical amount.';
+  }
+  return null;
 }

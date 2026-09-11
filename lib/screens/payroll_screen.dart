@@ -6,6 +6,9 @@ import '../models/payroll_period.dart';
 import '../models/payslip.dart';
 import '../models/salary_component.dart';
 import '../state/bci_store.dart';
+import '../utils/formatters.dart';
+import '../utils/status_tone.dart';
+import '../widgets/date_range_picker_row.dart';
 import '../widgets/status_chip.dart';
 
 class PayrollScreen extends StatefulWidget {
@@ -85,7 +88,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
                       children: <Widget>[
                         const Text('Current Estimated Net Payroll'),
                         Text(
-                          _money(widget.store.monthlyPayrollTotal),
+                          widget.store.monthlyPayrollTotal.toCurrency(),
                           style: Theme.of(context)
                               .textTheme
                               .headlineSmall
@@ -138,8 +141,8 @@ class _PayrollScreenState extends State<PayrollScreen> {
       child: ExpansionTile(
         leading: const Icon(Icons.calendar_month_outlined),
         title: Text(period.label, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text('${_formatDate(period.startDate)} to ${_formatDate(period.endDate)}'),
-        trailing: StatusChip(label: period.status.label, tone: _toneForPeriod(period.status)),
+        subtitle: Text('${period.startDate.toDisplayDate()} to ${period.endDate.toDisplayDate()}'),
+        trailing: StatusChip(label: period.status.label, tone: period.status.tone),
         childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 16),
         children: <Widget>[
           Row(
@@ -181,8 +184,8 @@ class _PayrollScreenState extends State<PayrollScreen> {
       child: ListTile(
         leading: const CircleAvatar(child: Icon(Icons.receipt_long_outlined)),
         title: Text(employee?.name ?? payslip.employeeId),
-        subtitle: Text('Net salary: ${_money(payslip.netSalary)}'),
-        trailing: StatusChip(label: payslip.status.label, tone: _toneForPayslip(payslip.status)),
+        subtitle: Text('Net salary: ${payslip.netSalary.toCurrency()}'),
+        trailing: StatusChip(label: payslip.status.label, tone: payslip.status.tone),
         onTap: () => _showPayslipDetail(context, payslip, employee),
       ),
     );
@@ -232,7 +235,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
       child: Row(
         children: <Widget>[
           Expanded(child: Text(label, style: style)),
-          Text(_money(value), style: style),
+          Text(value.toCurrency(), style: style),
         ],
       ),
     );
@@ -272,47 +275,14 @@ class _PayrollScreenState extends State<PayrollScreen> {
                       },
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              final DateTime? picked = await showDatePicker(
-                                context: dialogContext,
-                                initialDate: startDate,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(2100),
-                              );
-                              if (picked != null) {
-                                setDialogState(() {
-                                  startDate = picked;
-                                  if (endDate.isBefore(startDate)) endDate = startDate;
-                                });
-                              }
-                            },
-                            icon: const Icon(Icons.calendar_today_outlined, size: 16),
-                            label: Text('From ${_formatDate(startDate)}'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              final DateTime? picked = await showDatePicker(
-                                context: dialogContext,
-                                initialDate: endDate,
-                                firstDate: startDate,
-                                lastDate: DateTime(2100),
-                              );
-                              if (picked != null) {
-                                setDialogState(() => endDate = picked);
-                              }
-                            },
-                            icon: const Icon(Icons.calendar_today_outlined, size: 16),
-                            label: Text('To ${_formatDate(endDate)}'),
-                          ),
-                        ),
-                      ],
+                    DateRangePickerRow(
+                      startDate: startDate,
+                      endDate: endDate,
+                      onStartChanged: (DateTime picked) => setDialogState(() {
+                        startDate = picked;
+                        if (endDate.isBefore(startDate)) endDate = startDate;
+                      }),
+                      onEndChanged: (DateTime picked) => setDialogState(() => endDate = picked),
                     ),
                   ],
                 ),
@@ -343,30 +313,5 @@ class _PayrollScreenState extends State<PayrollScreen> {
     );
 
     labelController.dispose();
-  }
-
-  String _money(double value) => 'LKR ${value.toStringAsFixed(2)}';
-
-  String _formatDate(DateTime date) =>
-      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-
-  StatusTone _toneForPeriod(PayrollPeriodStatus status) {
-    switch (status) {
-      case PayrollPeriodStatus.draft:
-        return StatusTone.neutral;
-      case PayrollPeriodStatus.generated:
-        return StatusTone.warning;
-      case PayrollPeriodStatus.approved:
-        return StatusTone.positive;
-    }
-  }
-
-  StatusTone _toneForPayslip(PayslipStatus status) {
-    switch (status) {
-      case PayslipStatus.generated:
-        return StatusTone.warning;
-      case PayslipStatus.approved:
-        return StatusTone.positive;
-    }
   }
 }

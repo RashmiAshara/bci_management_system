@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../models/course.dart';
 import '../state/bci_store.dart';
+import '../widgets/confirm_delete_dialog.dart';
+import '../widgets/form_entry_field.dart';
+import '../widgets/management_list_header.dart';
 
 class CoursesScreen extends StatefulWidget {
   const CoursesScreen({super.key, required this.store});
@@ -27,29 +30,11 @@ class _CoursesScreenState extends State<CoursesScreen> {
     return Scaffold(
       body: Column(
         children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'Course Management',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'Search courses',
-                    hintText: 'Search by ID, code or name',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (String value) => setState(() => _query = value),
-                ),
-              ],
-            ),
+          ManagementListHeader(
+            title: 'Course Management',
+            searchLabel: 'Search courses',
+            searchHint: 'Search by ID, code or name',
+            onSearchChanged: (String value) => setState(() => _query = value),
           ),
           Expanded(
             child: courses.isEmpty
@@ -112,27 +97,14 @@ class _CoursesScreenState extends State<CoursesScreen> {
   }
 
   Future<void> _confirmDelete(Course course) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Delete course'),
-        content: Text(
+    final bool confirmed = await confirmDelete(
+      context,
+      title: 'Delete course',
+      message:
           'Delete ${course.name}? Students currently enrolled in this course will be unenrolled.',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
     );
 
-    if (confirmed == true) {
+    if (confirmed) {
       widget.store.removeCourse(course.id);
     }
   }
@@ -163,28 +135,32 @@ class _CoursesScreenState extends State<CoursesScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  _RequiredField(
+                  FormEntryField(
                     controller: idController,
                     label: 'Course ID',
                     enabled: !isEdit,
                   ),
-                  _RequiredField(controller: codeController, label: 'Course Code'),
-                  _RequiredField(controller: nameController, label: 'Course Name'),
-                  _RequiredField(
+                  FormEntryField(controller: codeController, label: 'Course Code'),
+                  FormEntryField(controller: nameController, label: 'Course Name'),
+                  FormEntryField(
                     controller: creditsController,
                     label: 'Credits',
                     keyboardType: TextInputType.number,
+                    validator: (String? value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Credits is required.';
+                      }
+                      if (int.tryParse(value.trim()) == null) {
+                        return 'Enter a whole number.';
+                      }
+                      return null;
+                    },
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: TextFormField(
-                      controller: descriptionController,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Description (optional)',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
+                  FormEntryField(
+                    controller: descriptionController,
+                    label: 'Description (optional)',
+                    maxLines: 3,
+                    required: false,
                   ),
                 ],
               ),
@@ -225,44 +201,5 @@ class _CoursesScreenState extends State<CoursesScreen> {
     nameController.dispose();
     creditsController.dispose();
     descriptionController.dispose();
-  }
-}
-
-class _RequiredField extends StatelessWidget {
-  const _RequiredField({
-    required this.controller,
-    required this.label,
-    this.keyboardType,
-    this.enabled = true,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final TextInputType? keyboardType;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        enabled: enabled,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
-        validator: (String? value) {
-          if (value == null || value.trim().isEmpty) {
-            return '$label is required.';
-          }
-          if (label == 'Credits' && int.tryParse(value.trim()) == null) {
-            return 'Enter a whole number.';
-          }
-          return null;
-        },
-      ),
-    );
   }
 }

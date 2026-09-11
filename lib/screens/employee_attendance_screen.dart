@@ -5,6 +5,9 @@ import '../models/attendance_status.dart';
 import '../models/employee.dart';
 import '../models/employee_attendance_record.dart';
 import '../state/bci_store.dart';
+import '../utils/formatters.dart';
+import '../utils/status_tone.dart';
+import '../widgets/date_picker_button.dart';
 import '../widgets/status_chip.dart';
 
 class EmployeeAttendanceScreen extends StatefulWidget {
@@ -82,10 +85,9 @@ class _EmployeeAttendanceScreenState extends State<EmployeeAttendanceScreen> {
           const SizedBox(height: 6),
           Text('Daily attendance log for all staff', style: Theme.of(context).textTheme.bodyLarge),
           const SizedBox(height: 14),
-          OutlinedButton.icon(
-            onPressed: _pickDate,
-            icon: const Icon(Icons.calendar_today_outlined),
-            label: Text(_formatDate(_selectedDate)),
+          DatePickerButton(
+            date: _selectedDate,
+            onChanged: (DateTime picked) => setState(() => _selectedDate = picked),
           ),
           const SizedBox(height: 14),
           ...employees.map((Employee employee) => _employeeRow(employee)),
@@ -114,7 +116,7 @@ class _EmployeeAttendanceScreenState extends State<EmployeeAttendanceScreen> {
                 onPressed: () => _showMarkDialog(employeeId: employee.id, date: _selectedDate),
                 child: const Text('Mark'),
               )
-            : StatusChip(label: existing.status.label, tone: _toneFor(existing.status)),
+            : StatusChip(label: existing.status.label, tone: existing.status.tone),
         onTap: () =>
             _showMarkDialog(employeeId: employee.id, date: _selectedDate, existing: existing),
       ),
@@ -126,9 +128,9 @@ class _EmployeeAttendanceScreenState extends State<EmployeeAttendanceScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: const Icon(Icons.event_outlined),
-        title: Text(_formatDate(record.date)),
+        title: Text(record.date.toDisplayDate()),
         subtitle: Text('${record.checkIn ?? '-'} to ${record.checkOut ?? '-'}'),
-        trailing: StatusChip(label: record.status.label, tone: _toneFor(record.status)),
+        trailing: StatusChip(label: record.status.label, tone: record.status.tone),
         onTap: () => _showMarkDialog(
           employeeId: record.employeeId,
           date: record.date,
@@ -140,7 +142,7 @@ class _EmployeeAttendanceScreenState extends State<EmployeeAttendanceScreen> {
 
   EmployeeAttendanceRecord? _recordFor(String employeeId, DateTime date) {
     for (final EmployeeAttendanceRecord r in widget.store.employeeAttendance) {
-      if (r.employeeId == employeeId && _isSameDay(r.date, date)) return r;
+      if (r.employeeId == employeeId && r.date.isSameDate(date)) return r;
     }
     return null;
   }
@@ -161,7 +163,7 @@ class _EmployeeAttendanceScreenState extends State<EmployeeAttendanceScreen> {
       builder: (BuildContext dialogContext) => StatefulBuilder(
         builder: (BuildContext dialogContext, StateSetter setDialogState) {
           return AlertDialog(
-            title: Text('Attendance • ${_formatDate(date)}'),
+            title: Text('Attendance • ${date.toDisplayDate()}'),
             content: SizedBox(
               width: 420,
               child: Column(
@@ -231,36 +233,5 @@ class _EmployeeAttendanceScreenState extends State<EmployeeAttendanceScreen> {
 
     checkInController.dispose();
     checkOutController.dispose();
-  }
-
-  Future<void> _pickDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() => _selectedDate = picked);
-    }
-  }
-
-  bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
-
-  String _formatDate(DateTime date) =>
-      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-
-  StatusTone _toneFor(AttendanceStatus status) {
-    switch (status) {
-      case AttendanceStatus.present:
-        return StatusTone.positive;
-      case AttendanceStatus.absent:
-        return StatusTone.negative;
-      case AttendanceStatus.late:
-        return StatusTone.warning;
-      case AttendanceStatus.excused:
-        return StatusTone.neutral;
-    }
   }
 }

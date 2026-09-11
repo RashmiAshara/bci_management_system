@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../state/bci_store.dart';
+import '../utils/formatters.dart';
 import '../widgets/summary_card.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -59,7 +60,7 @@ class DashboardScreen extends StatelessWidget {
               ),
               SummaryCard(
                 title: 'Monthly Net Payroll',
-                value: _money(store.monthlyPayrollTotal),
+                value: store.monthlyPayrollTotal.toCurrency(),
                 subtitle: 'Calculated from current employee records',
                 icon: Icons.payments_outlined,
               ),
@@ -134,8 +135,6 @@ class DashboardScreen extends StatelessWidget {
       ],
     );
   }
-
-  static String _money(double value) => 'LKR ${value.toStringAsFixed(2)}';
 }
 
 class _ModuleRow extends StatelessWidget {

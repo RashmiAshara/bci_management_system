@@ -4,6 +4,9 @@ import '../models/app_user.dart';
 import '../models/employee.dart';
 import '../models/leave_request.dart';
 import '../state/bci_store.dart';
+import '../utils/formatters.dart';
+import '../utils/status_tone.dart';
+import '../widgets/date_range_picker_row.dart';
 import '../widgets/status_chip.dart';
 
 class LeaveScreen extends StatefulWidget {
@@ -132,13 +135,13 @@ class _LeaveScreenState extends State<LeaveScreen> {
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
-                StatusChip(label: request.status.label, tone: _toneFor(request.status)),
+                StatusChip(label: request.status.label, tone: request.status.tone),
               ],
             ),
             const SizedBox(height: 4),
             Text('${request.leaveType.label} • ${request.durationInDays} day(s)'),
             Text(
-              '${_formatDate(request.startDate)} to ${_formatDate(request.endDate)}',
+              '${request.startDate.toDisplayDate()} to ${request.endDate.toDisplayDate()}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             if (request.reason.isNotEmpty) ...<Widget>[
@@ -205,47 +208,14 @@ class _LeaveScreenState extends State<LeaveScreen> {
                         },
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () async {
-                                final DateTime? picked = await showDatePicker(
-                                  context: dialogContext,
-                                  initialDate: startDate,
-                                  firstDate: DateTime(2020),
-                                  lastDate: DateTime(2100),
-                                );
-                                if (picked != null) {
-                                  setDialogState(() {
-                                    startDate = picked;
-                                    if (endDate.isBefore(startDate)) endDate = startDate;
-                                  });
-                                }
-                              },
-                              icon: const Icon(Icons.calendar_today_outlined, size: 16),
-                              label: Text('From ${_formatDate(startDate)}'),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () async {
-                                final DateTime? picked = await showDatePicker(
-                                  context: dialogContext,
-                                  initialDate: endDate,
-                                  firstDate: startDate,
-                                  lastDate: DateTime(2100),
-                                );
-                                if (picked != null) {
-                                  setDialogState(() => endDate = picked);
-                                }
-                              },
-                              icon: const Icon(Icons.calendar_today_outlined, size: 16),
-                              label: Text('To ${_formatDate(endDate)}'),
-                            ),
-                          ),
-                        ],
+                      DateRangePickerRow(
+                        startDate: startDate,
+                        endDate: endDate,
+                        onStartChanged: (DateTime picked) => setDialogState(() {
+                          startDate = picked;
+                          if (endDate.isBefore(startDate)) endDate = startDate;
+                        }),
+                        onEndChanged: (DateTime picked) => setDialogState(() => endDate = picked),
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -294,19 +264,5 @@ class _LeaveScreenState extends State<LeaveScreen> {
     );
 
     reasonController.dispose();
-  }
-
-  String _formatDate(DateTime date) =>
-      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-
-  StatusTone _toneFor(LeaveStatus status) {
-    switch (status) {
-      case LeaveStatus.approved:
-        return StatusTone.positive;
-      case LeaveStatus.rejected:
-        return StatusTone.negative;
-      case LeaveStatus.pending:
-        return StatusTone.warning;
-    }
   }
 }

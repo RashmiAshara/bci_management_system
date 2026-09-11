@@ -13,6 +13,7 @@ import '../models/payslip.dart';
 import '../models/salary_component.dart';
 import '../models/student.dart';
 import '../models/student_attendance_record.dart';
+import '../utils/formatters.dart';
 
 class BciStore extends ChangeNotifier {
   // ---------------------------------------------------------------------
@@ -119,12 +120,7 @@ class BciStore extends ChangeNotifier {
 
   List<Module> get modules => List<Module>.unmodifiable(_modules);
 
-  Module? moduleById(String id) {
-    for (final Module module in _modules) {
-      if (module.id == id) return module;
-    }
-    return null;
-  }
+  Module? moduleById(String id) => _findById(_modules, id, (Module m) => m.id);
 
   // ---------------------------------------------------------------------
   // Students
@@ -159,12 +155,7 @@ class BciStore extends ChangeNotifier {
 
   List<Student> get students => List<Student>.unmodifiable(_students);
 
-  Student? studentById(String id) {
-    for (final Student student in _students) {
-      if (student.id == id) return student;
-    }
-    return null;
-  }
+  Student? studentById(String id) => _findById(_students, id, (Student s) => s.id);
 
   int get activeStudentCount =>
       _students.where((Student student) => student.status == 'Active').length;
@@ -217,12 +208,7 @@ class BciStore extends ChangeNotifier {
 
   List<Course> get courses => List<Course>.unmodifiable(_courses);
 
-  Course? courseById(String id) {
-    for (final Course course in _courses) {
-      if (course.id == id) return course;
-    }
-    return null;
-  }
+  Course? courseById(String id) => _findById(_courses, id, (Course c) => c.id);
 
   void addCourse(Course course) {
     _courses.add(course);
@@ -375,12 +361,7 @@ class BciStore extends ChangeNotifier {
   List<Employee> get activeEmployees =>
       _employees.where((Employee employee) => employee.active).toList();
 
-  Employee? employeeById(String id) {
-    for (final Employee employee in _employees) {
-      if (employee.id == id) return employee;
-    }
-    return null;
-  }
+  Employee? employeeById(String id) => _findById(_employees, id, (Employee e) => e.id);
 
   double get monthlyPayrollTotal => _employees.fold<double>(
         0,
@@ -421,7 +402,7 @@ class BciStore extends ChangeNotifier {
     String remarks = '',
   }) {
     _studentAttendance.removeWhere((StudentAttendanceRecord r) =>
-        r.studentId == studentId && r.moduleId == moduleId && _isSameDay(r.date, date));
+        r.studentId == studentId && r.moduleId == moduleId && r.date.isSameDate(date));
     _studentAttendance.add(StudentAttendanceRecord(
       id: 'SA-${DateTime.now().microsecondsSinceEpoch}-$studentId',
       studentId: studentId,
@@ -468,7 +449,7 @@ class BciStore extends ChangeNotifier {
     String? checkOut,
   }) {
     _employeeAttendance.removeWhere(
-        (EmployeeAttendanceRecord r) => r.employeeId == employeeId && _isSameDay(r.date, date));
+        (EmployeeAttendanceRecord r) => r.employeeId == employeeId && r.date.isSameDate(date));
     _employeeAttendance.add(EmployeeAttendanceRecord(
       id: 'EA-${DateTime.now().microsecondsSinceEpoch}-$employeeId',
       employeeId: employeeId,
@@ -642,6 +623,12 @@ class BciStore extends ChangeNotifier {
   // Helpers
   // ---------------------------------------------------------------------
 
-  bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+  /// Returns the first item in [items] whose id (per [idOf]) matches [id],
+  /// or `null` if none match. Shared by the various `xById` lookups above.
+  T? _findById<T>(List<T> items, String id, String Function(T item) idOf) {
+    for (final T item in items) {
+      if (idOf(item) == id) return item;
+    }
+    return null;
+  }
 }

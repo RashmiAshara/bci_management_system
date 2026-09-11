@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../models/course.dart';
 import '../models/student.dart';
 import '../state/bci_store.dart';
+import '../widgets/confirm_delete_dialog.dart';
+import '../widgets/form_entry_field.dart';
+import '../widgets/management_list_header.dart';
 
 class StudentsScreen extends StatefulWidget {
   const StudentsScreen({super.key, required this.store});
@@ -35,29 +38,11 @@ class _StudentsScreenState extends State<StudentsScreen> {
     return Scaffold(
       body: Column(
         children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'Student Management',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'Search students',
-                    hintText: 'Search by ID, name or programme',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (String value) => setState(() => _query = value),
-                ),
-              ],
-            ),
+          ManagementListHeader(
+            title: 'Student Management',
+            searchLabel: 'Search students',
+            searchHint: 'Search by ID, name or programme',
+            onSearchChanged: (String value) => setState(() => _query = value),
           ),
           Expanded(
             child: students.isEmpty
@@ -163,25 +148,13 @@ class _StudentsScreenState extends State<StudentsScreen> {
   }
 
   Future<void> _confirmDelete(Student student) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Delete student'),
-        content: Text('Delete ${student.name} from the system?'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final bool confirmed = await confirmDelete(
+      context,
+      title: 'Delete student',
+      message: 'Delete ${student.name} from the system?',
     );
 
-    if (confirmed == true) {
+    if (confirmed) {
       widget.store.removeStudent(student.id);
     }
   }
@@ -264,22 +237,31 @@ class _StudentsScreenState extends State<StudentsScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      _RequiredField(
+                      FormEntryField(
                         controller: idController,
                         label: 'Student ID',
                         enabled: !isEdit,
                       ),
-                      _RequiredField(controller: nameController, label: 'Full Name'),
-                      _RequiredField(
+                      FormEntryField(controller: nameController, label: 'Full Name'),
+                      FormEntryField(
                         controller: emailController,
                         label: 'Email',
                         keyboardType: TextInputType.emailAddress,
+                        validator: (String? value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Email is required.';
+                          }
+                          if (!value.contains('@')) {
+                            return 'Enter a valid email address.';
+                          }
+                          return null;
+                        },
                       ),
-                      _RequiredField(
+                      FormEntryField(
                         controller: programmeController,
                         label: 'Programme',
                       ),
-                      _RequiredField(controller: intakeController, label: 'Intake'),
+                      FormEntryField(controller: intakeController, label: 'Intake'),
                       if (isEdit) ...<Widget>[
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
@@ -340,44 +322,5 @@ class _StudentsScreenState extends State<StudentsScreen> {
     emailController.dispose();
     programmeController.dispose();
     intakeController.dispose();
-  }
-}
-
-class _RequiredField extends StatelessWidget {
-  const _RequiredField({
-    required this.controller,
-    required this.label,
-    this.keyboardType,
-    this.enabled = true,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final TextInputType? keyboardType;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        enabled: enabled,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
-        validator: (String? value) {
-          if (value == null || value.trim().isEmpty) {
-            return '$label is required.';
-          }
-          if (label == 'Email' && !value.contains('@')) {
-            return 'Enter a valid email address.';
-          }
-          return null;
-        },
-      ),
-    );
   }
 }

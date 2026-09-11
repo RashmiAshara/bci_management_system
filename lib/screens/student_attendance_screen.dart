@@ -6,6 +6,9 @@ import '../models/module.dart';
 import '../models/student.dart';
 import '../models/student_attendance_record.dart';
 import '../state/bci_store.dart';
+import '../utils/formatters.dart';
+import '../utils/status_tone.dart';
+import '../widgets/date_picker_button.dart';
 import '../widgets/status_chip.dart';
 
 class StudentAttendanceScreen extends StatefulWidget {
@@ -90,8 +93,8 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
               child: ListTile(
                 leading: const Icon(Icons.event_outlined),
                 title: Text(widget.store.moduleById(r.moduleId)?.name ?? r.moduleId),
-                subtitle: Text(_formatDate(r.date)),
-                trailing: StatusChip(label: r.status.label, tone: _toneFor(r.status)),
+                subtitle: Text(r.date.toDisplayDate()),
+                trailing: StatusChip(label: r.status.label, tone: r.status.tone),
               ),
             ),
           ),
@@ -136,10 +139,9 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _pickDate,
-                  icon: const Icon(Icons.calendar_today_outlined),
-                  label: Text(_formatDate(_selectedDate)),
+                child: DatePickerButton(
+                  date: _selectedDate,
+                  onChanged: (DateTime picked) => setState(() => _selectedDate = picked),
                 ),
               ),
             ],
@@ -158,7 +160,7 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
     final Module module = _selectedModule!;
     StudentAttendanceRecord? existing;
     for (final StudentAttendanceRecord r in widget.store.studentAttendance) {
-      if (r.studentId == student.id && r.moduleId == module.id && _isSameDay(r.date, _selectedDate)) {
+      if (r.studentId == student.id && r.moduleId == module.id && r.date.isSameDate(_selectedDate)) {
         existing = r;
         break;
       }
@@ -212,36 +214,5 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
         ),
       ),
     );
-  }
-
-  Future<void> _pickDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() => _selectedDate = picked);
-    }
-  }
-
-  bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
-
-  String _formatDate(DateTime date) =>
-      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-
-  StatusTone _toneFor(AttendanceStatus status) {
-    switch (status) {
-      case AttendanceStatus.present:
-        return StatusTone.positive;
-      case AttendanceStatus.absent:
-        return StatusTone.negative;
-      case AttendanceStatus.late:
-        return StatusTone.warning;
-      case AttendanceStatus.excused:
-        return StatusTone.neutral;
-    }
   }
 }
